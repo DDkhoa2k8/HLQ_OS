@@ -1,0 +1,5 @@
+(https://github.com/rust-osdev/bootimage/tree/master)
+cargo install bootimage 
+
+[dependencies]
+bootloader = "0.9.8"

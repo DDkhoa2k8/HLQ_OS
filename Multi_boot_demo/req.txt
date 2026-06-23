@@ -1,0 +1,2 @@
+Subsys linux or native linux (ubuntu)
+ld, objdump, qemu-system-x86_64, grub-mkrescue, xorriso, Nasm

@@ -3,4 +3,15 @@ name = "HLQ_OS"
 version = "0.1.0"
 edition = "2024"
 
+[[bin]]
+name = "HLQ_OS"
+test = false
+bench = false
+
+[profile.dev]
+panic = "abort"
+
+[profile.release]
+panic = "abort"
+
 [dependencies]
