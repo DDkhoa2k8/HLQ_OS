@@ -1,2 +1,3 @@
 Subsys linux or native linux (ubuntu)
+If use WSL then u'll need grub-pc-bin
 ld, objdump, qemu-system-x86_64, grub-mkrescue, xorriso, Nasm
