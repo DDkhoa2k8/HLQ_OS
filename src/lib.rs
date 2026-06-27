@@ -11,7 +11,7 @@ pub mod vga_writer;
 pub extern "C" fn rust_main() -> ! {
     let mut vga_writer = vga_writer::VGAWriter::init();
 
-    vga_writer.line_o = 2;//Avoid overlap with 2 previous line of the text print by boot.asm and long_mode.asm
+    vga_writer.line_o = 2;//start from line no.3 to avoid overlap with 2 previous line of the text print by boot.asm and long_mode.asm
     vga_writer.print("Hello world!");
 
     loop {}

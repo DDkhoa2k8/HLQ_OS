@@ -1,6 +1,27 @@
 const COL_SIZE:isize = 80;
 const ROW_SIZE:isize = 25;
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[repr(u8)]
+pub enum VGAOutColor {
+    Black = 0,
+    Blue = 1,
+    Green = 2,
+    Cyan = 3,
+    Red = 4,
+    Magenta = 5,
+    Brown = 6,
+    LightGray = 7,
+    DarkGray = 8,
+    LightBlue = 9,
+    LightGreen = 10,
+    LightCyan = 11,
+    LightRed = 12,
+    Pink = 13,
+    Yellow = 14,
+    White = 15,
+}
+
 pub struct VGAWriter {
     pub vga_addr: *mut u8,
     pub line_char_o: isize,//index of currect column
@@ -47,8 +68,26 @@ impl VGAWriter {
     /// //0x2f -> 0010(second 4 is green) 1111(first 4 bit mean white)
     /// vga.set_color(0x2f);//Set background color green, white text
     /// ```
-    pub fn set_color(&mut self, color:u8) {
+    pub fn set_color_hex(&mut self, color:u8) {
         self.color = color;
+    }
+
+    ///### Set text color
+    /// ### Example:
+    /// ```no_run
+    /// pub mod vga_writer;
+    /// 
+    /// let mut vga = vga_writer::VGAWriter::init();
+    /// 
+    /// //0x2f -> 0010(second 4 is green) 1111(first 4 bit mean white)
+    /// vga.set_color(VGAOutColor::White, VGAOutColor::Green);//Set background color green, white text
+    /// ```
+    pub fn set_color(&mut self, text_color: VGAOutColor, background_color: VGAOutColor) {
+        self.color = ((background_color as u8) << 4) | text_color as u8;
+
+        //how it work:
+        //0000(4 bit bg color) << 4 = (4 bit bg color)0000 //Bit shift
+        // (4 bit bg color)0000 | 0000(4 bit text color) = (4 bit bg color)(4 bit text color) //OR operation act like merge
     }
 
     /// ### Break line
@@ -86,7 +125,7 @@ impl VGAWriter {
     /// //A
     /// ```
     pub fn print_char(&mut self, c:u8) {
-        let offset = (COL_SIZE * self.line_o + self.line_char_o) * 2;
+        let offset = (COL_SIZE * self.line_o + self.line_char_o) * 2;//Mapping to memory address offset
         
         unsafe {
             *self.vga_addr.offset(offset) = c;
@@ -110,7 +149,10 @@ impl VGAWriter {
     /// ```
     pub fn print(&mut self, content: &str) {
         for s in content.bytes() {
-            self.print_char(s);
+            match s {
+                b'\n' => self.new_line(),
+                s => self.print_char(s),
+            }
         }
     }
 
@@ -129,9 +171,7 @@ impl VGAWriter {
     /// //World
     /// ```
     pub fn println(&mut self, content: &str) {
-        for s in content.bytes() {
-            self.print_char(s);
-        }
+        self.print(content);
 
         self.new_line();
     }
