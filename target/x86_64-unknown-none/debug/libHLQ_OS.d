@@ -1,0 +1,1 @@
+/mnt/d/Private_Proj/HLQ_OS/target/x86_64-unknown-none/debug/libHLQ_OS.a: /mnt/d/Private_Proj/HLQ_OS/src/lib.rs /mnt/d/Private_Proj/HLQ_OS/src/vga_writer.rs
