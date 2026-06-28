@@ -27,6 +27,7 @@ pub struct VGAWriter {
     pub line_char_o: isize,//index of currect column
     pub line_o: isize,//index of current row (line)
     pub color: u8,
+    pub clear_on_overlow:bool,
 }
 
 impl VGAWriter {
@@ -34,8 +35,6 @@ impl VGAWriter {
     /// 
     /// ### Example:
     /// ```no_run
-    /// pub mod vga_writer;
-    /// 
     /// let mut vga = vga_writer::VGAWriter::init();
     /// 
     /// vga.print("Hello World");
@@ -48,6 +47,7 @@ impl VGAWriter {
             line_char_o: 0,
             line_o: 0,
             color: 0x2f,//Light green
+            clear_on_overlow:true,
         }
     }
 
@@ -61,8 +61,6 @@ impl VGAWriter {
     /// 
     /// ### Example:
     /// ```no_run
-    /// pub mod vga_writer;
-    /// 
     /// let mut vga = vga_writer::VGAWriter::init();
     /// 
     /// //0x2f -> 0010(second 4 is green) 1111(first 4 bit mean white)
@@ -75,8 +73,6 @@ impl VGAWriter {
     ///### Set text color
     /// ### Example:
     /// ```no_run
-    /// pub mod vga_writer;
-    /// 
     /// let mut vga = vga_writer::VGAWriter::init();
     /// 
     /// //0x2f -> 0010(second 4 is green) 1111(first 4 bit mean white)
@@ -94,8 +90,6 @@ impl VGAWriter {
     /// 
     /// ### Example:
     /// ```no_run
-    /// pub mod vga_writer;
-    /// 
     /// let mut vga = vga_writer::VGAWriter::init();
     /// 
     /// vga.print_char("A");
@@ -115,8 +109,21 @@ impl VGAWriter {
 
     /// ### Print a a warning
     pub fn warn(&mut self, content:&str) {
+        let backup = self.color;
+
+        self.set_color(VGAOutColor::Red, VGAOutColor::Yellow);
+        self.println(content);
+
+        self.color = backup;
+    }
+
+    /// ### Print a a warning on start of cmd
+    pub fn warn_top(&mut self, content:&str) {
         let backup = (self.color, self.line_o, self.line_char_o);
 
+        self.line_o = 0;
+        self.line_char_o = 0;
+        
         self.set_color(VGAOutColor::Red, VGAOutColor::Yellow);
         self.println(content);
 
@@ -129,8 +136,6 @@ impl VGAWriter {
     /// 
     /// ### Example:
     /// ```no_run
-    /// pub mod vga_writer;
-    /// 
     /// let mut vga = vga_writer::VGAWriter::init();
     /// 
     /// vga.print_char("A");
@@ -145,10 +150,20 @@ impl VGAWriter {
         }
 
         if self.line_o >= ROW_SIZE {
-            self.warn("Overflow");
-
-            return false;
+            if self.clear_on_overlow {
+                self.clear_line(0);
+            } else {
+                self.warn_top("Overflow");
+                return false;
+            }
         }
+
+        let mut c = c;
+
+        c = match c {
+            0x20..=0x7e => c, //Only print Ascii char
+            _ => 0xfe, //If not ascii char then print "■"
+        };
 
         let offset = (COL_SIZE * self.line_o + self.line_char_o) * 2;//Mapping to memory address offset
         
@@ -166,8 +181,6 @@ impl VGAWriter {
     /// 
     /// ### Example:
     /// ```no_run
-    /// pub mod vga_writer;
-    /// 
     /// let mut vga = vga_writer::VGAWriter::init();
     /// 
     /// vga.print("Hello World");
@@ -189,8 +202,6 @@ impl VGAWriter {
     /// 
     /// ### Example:
     /// ```no_run
-    /// pub mod vga_writer;
-    /// 
     /// let mut vga = vga_writer::VGAWriter::init();
     /// 
     /// vga.println("Hello");
@@ -210,13 +221,23 @@ impl VGAWriter {
         self.line_o = 0;
         self.line_char_o = 0;
 
-        for r in 0..ROW_SIZE {
-            for c in 0..COL_SIZE {
-                let offset = (COL_SIZE * r + c) * 2;//Mapping to memory address offset
-        
-                unsafe {
-                    *self.vga_addr.offset(offset + 1) = 0x0;
-                }
+        for c in 0..(ROW_SIZE * COL_SIZE) {
+            unsafe {
+                *self.vga_addr.offset(c * 2 + 1) = 0x0;
+            }
+        }
+    }
+
+    ///### Clear specific line cmd
+    pub fn clear_line(&mut self, line:isize) {
+        self.line_o = 0;
+        self.line_char_o = 0;
+
+        let line_of = COL_SIZE * line;
+
+        for c in 0..COL_SIZE {
+            unsafe {
+                *self.vga_addr.offset((line_of + c) * 2 + 1) = 0x0;
             }
         }
     }

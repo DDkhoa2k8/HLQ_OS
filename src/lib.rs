@@ -11,10 +11,11 @@ pub mod vga_writer;
 pub extern "C" fn rust_main() -> ! {
     let mut vga_writer = vga_writer::VGAWriter::init();
 
-    // vga_writer.set_color(vga_writer::VGAOutColor::Blue, vga_writer::VGAOutColor::Brown);
+    vga_writer.set_color(vga_writer::VGAOutColor::Green, vga_writer::VGAOutColor::Black);
 
     vga_writer.line_o = 2;//start from line no.3 to avoid overlap with 2 previous line of the text print by boot.asm and long_mode.asm
-    vga_writer.print("Hello world!");
+    
+    vga_writer.println("Hello world!");
 
     loop {}
 }

@@ -17,8 +17,8 @@ start:
 
     ; print `BOOT` to screen
     ;0xb8000 is start of VGA text buffer 0x<color code><ascii><color code><ascii>
-    mov dword [0xb8000], 0x2f4f2f42
-    mov dword [0xb8004], 0x2f542f4f
+    mov dword [0xb8000], 0x024f0242
+    mov dword [0xb8004], 0x0254024f
 
     ;long boot call 64bit
     lgdt [gdt64.pointer]

@@ -13,12 +13,12 @@ long_mode_start:
 
     ; print `LONG BOOT` to screen
     ;'LONG'
-    mov rax, 0x2f472f4e2f4f2f4c
+    mov rax, 0x0247024e024f024c
     mov qword [0xb80a0], rax
     ;Space
-    mov qword [0x80a8], 0x2f20
+    mov dword [0x80a8], 0x0220
     ;'BOOT'
-    mov rax, 0x2f542f4f2f4f2f42
+    mov rax, 0x0254024f024f0242
     mov qword [0xb80aa], rax
 
     call rust_main
