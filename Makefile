@@ -31,7 +31,7 @@ clean:
 	@cargo clean
 
 run: $(iso)
-	@qemu-system-x86_64 -cdrom $(iso) -no-reboot
+	@qemu-system-x86_64 -cdrom $(iso) -no-reboot -no-shutdown
 
 run_log: $(iso)
 	@qemu-system-x86_64 -cdrom $(iso) -d int -no-reboot -no-shutdown

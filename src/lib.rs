@@ -2,7 +2,7 @@
 #![no_main]
 
 use core::panic::PanicInfo;
-use core::arch::{asm, global_asm};
+use core::arch::*;
 pub mod vga_writer;
 pub mod interrupts;
 
@@ -29,7 +29,9 @@ pub extern "C" fn rust_main(_mbi_ptr: usize) -> ! {
     //     asm!("div rbx");//divide rax by rbx => 100 / 0 => divide by 0
     // }
     
-    vga_println!("hello world! using vga buffer");
+    let pi = 3.14;
+
+    vga_println!("hello world! using vga buffer pi = {}", pi);
 
     loop {}
 }

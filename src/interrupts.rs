@@ -1,6 +1,111 @@
 use core::ptr::addr_of;
 use crate::vga_println;
 
+#[derive(Debug, Clone, Copy)]
+#[repr(C)]
+pub struct ExceptionStackFrame {
+    // Pushed by our assembly stub
+    pub r15: u64, pub r14: u64, pub r13: u64, pub r12: u64,
+    pub r11: u64, pub r10: u64, pub r9:  u64, pub r8:  u64,
+    pub rbp: u64, pub rdi: u64, pub rsi: u64, pub rdx: u64,
+    pub rcx: u64, pub rbx: u64, pub rax: u64,
+    
+    // Pushed automatically or manually handled for error codes
+    pub error_code: u64,
+    
+    // Automatically pushed by x86_64 CPU hardware
+    pub rip: u64,
+    pub cs: u64,
+    pub rflags: u64,
+    pub rsp: u64,
+    pub ss: u64,
+}
+
+use core::arch::global_asm;
+
+global_asm!(
+    r#"
+    .macro exception_stub_no_error name, handler
+    .global \name
+    \name:
+        push 0                    # Dummy error code
+        push rax; push rbx; push rcx; push rdx; push rsi; push rdi; push rbp
+        push r8;  push r9;  push r10; push r11; push r12; push r13; push r14; push r15
+        mov rdi, rsp              # Pass pointer to stack frame as 1st argument (RDI)
+        call \handler
+        pop r15;  pop r14;  pop r13;  pop r12;  pop r11;  pop r10;  pop r9;  pop r8
+        pop rbp;  pop rdi;  pop rsi;  pop rdx;  pop rcx;  pop rbx;  pop rax
+        add rsp, 8                # Clean up dummy error code
+        iretq                     # Return from interrupt
+    .endm
+
+    .macro exception_stub_with_error name, handler
+    .global \name
+    \name:
+        # Error code is already pushed by CPU here
+        push rax; push rbx; push rcx; push rdx; push rsi; push rdi; push rbp
+        push r8;  push r9;  push r10; push r11; push r12; push r13; push r14; push r15
+        mov rdi, rsp              # Pass pointer to stack frame as 1st argument (RDI)
+        call \handler
+        pop r15;  pop r14;  pop r13;  pop r12;  pop r11;  pop r10;  pop r9;  pop r8
+        pop rbp;  pop rdi;  pop rsi;  pop rdx;  pop rcx;  pop rbx;  pop rax
+        add rsp, 8                # Clean up CPU error code
+        iretq                     # Return from interrupt
+    .endm
+
+    # Link the raw ASM stubs to our clean Rust handlers
+    exception_stub_no_error   asm_handler_de, rust_handler_de
+    exception_stub_no_error   asm_handler_bp, rust_handler_bp
+    exception_stub_with_error asm_handler_gp, rust_handler_gp
+    exception_stub_with_error asm_handler_pf, rust_handler_pf
+    "#
+);
+
+// Declare the assembly stubs so we can pass them to our IDT
+unsafe extern "C" {
+    fn asm_handler_de();
+    fn asm_handler_bp();
+    fn asm_handler_gp();
+    fn asm_handler_pf();
+}
+
+#[unsafe(no_mangle)]
+pub extern "C" fn rust_handler_de(frame: &ExceptionStackFrame) {
+    vga_println!("--- EXCEPTION: DIVIDE BY ZERO (#DE) ---");
+    vga_println!("Instruction Pointer (RIP): 0x{}", frame.rip);
+    vga_println!("Stack Pointer (RSP):       0x{}", frame.rsp);
+    vga_println!("RAX: 0x{} | RBX: 0x{}", frame.rax, frame.rbx);
+    loop {} // Diverge since we can't safely resume a divide-by-zero easily
+}
+
+#[unsafe(no_mangle)]
+pub extern "C" fn rust_handler_bp(frame: &ExceptionStackFrame) {
+    vga_println!("--- BREAKPOINT (#BP) ---");
+    vga_println!("Resuming execution after RIP: 0x{}", frame.rip);
+    // Breakpoints are traps, so we can return normally! The stub handles `iretq`.
+}
+
+#[unsafe(no_mangle)]
+pub extern "C" fn rust_handler_gp(frame: &ExceptionStackFrame) {
+    vga_println!("--- GENERAL PROTECTION FAULT (#GP) ---");
+    vga_println!("Error Code:                0x{}", frame.error_code);
+    vga_println!("Failing Instruction (RIP): 0x{}", frame.rip);
+    loop {}
+}
+
+#[unsafe(no_mangle)]
+pub extern "C" fn rust_handler_pf(frame: &ExceptionStackFrame) {
+    let cr2: u64;
+    unsafe {
+        core::arch::asm!("mov {}, cr2", out(reg) cr2);
+    }
+    vga_println!("--- PAGE FAULT (#PF) ---");
+    vga_println!("Faulting Memory Address:   0x{}", cr2); // CR2 contains the exact address that triggered the fault
+    vga_println!("Error Code Bits:           0x{}", frame.error_code);
+    vga_println!("Failing Instruction (RIP): 0x{}", frame.rip);
+    loop {}
+}
+
 // ── Gate type + attribute byte ──────────────────────────────────────────────
 const GATE_PRESENT:    u8 = 1 << 7;   // P bit
 const GATE_DPL0:       u8 = 0 << 5;   // ring 0
@@ -71,47 +176,43 @@ struct IdtDescriptor {
 }
 
 // ── Raw exception stubs (must be `extern "C"`, no Rust ABI mangling) ─────────
-unsafe extern "C" fn handler_de()  {  
-    vga_println!("#DE divide-by-zero    "); 
-}
+// unsafe extern "C" fn handler_de()  {  
+//     vga_println!("#DE divide-by-zero    "); 
+// }
 
-unsafe extern "C" fn handler_db()  {  
-    vga_println!("#DB debug             "); 
-}
+// unsafe extern "C" fn handler_db()  {  
+//     vga_println!("#DB debug             "); 
+// }
 
-unsafe extern "C" fn handler_nmi() {  
-    vga_println!("NMI                   "); 
-}
+// unsafe extern "C" fn handler_nmi() {  
+//     vga_println!("NMI                   "); 
+// }
 
-unsafe extern "C" fn handler_of()  {  
-    vga_println!("#OF overflow (trap)   "); 
-}
+// unsafe extern "C" fn handler_of()  {  
+//     vga_println!("#OF overflow (trap)   "); 
+// }
 
-unsafe extern "C" fn handler_gp()  {  
-    vga_println!("#GP general protection"); 
-}
+// unsafe extern "C" fn handler_gp()  {  
+//     vga_println!("#GP general protection"); 
+// }
 
-unsafe extern "C" fn handler_pf()  {  
-    vga_println!("#PF page fault        "); 
-}
+// unsafe extern "C" fn handler_pf()  {  
+//     vga_println!("#PF page fault        "); 
+// }
 
-unsafe extern "C" fn handler_bp()  {
-    vga_println!("#BP break point");
-}
+// unsafe extern "C" fn handler_bp()  {
+//     vga_println!("#BP break point");
+// }
 
 // ── Install entries and load ──────────────────────────────────────────────────
 pub unsafe fn init_idt() {
     // CPU exceptions (vectors 0–31)
     unsafe {
-        IDT.0[0]  = IdtEntry::new_interrupt(handler_de);   // #DE
-        IDT.0[1]  = IdtEntry::new_interrupt(handler_db);   // #DB
-        IDT.0[2]  = IdtEntry::new_interrupt(handler_nmi);  // NMI
-        IDT.0[3]  = IdtEntry::new_trap     (handler_bp);   // #BP  ← trap so RIP advances
-        IDT.0[4]  = IdtEntry::new_trap     (handler_of);   // #OF
-        IDT.0[13] = IdtEntry::new_interrupt(handler_gp);   // #GP
-        IDT.0[14] = IdtEntry::new_interrupt(handler_pf);   // #PF
+        IDT.0[0]  = IdtEntry::new_interrupt(asm_handler_de); 
+        IDT.0[3]  = IdtEntry::new_trap(asm_handler_bp);      
+        IDT.0[13] = IdtEntry::new_interrupt(asm_handler_gp); 
+        IDT.0[14] = IdtEntry::new_interrupt(asm_handler_pf);
     }
-    // vectors 32–255 → hardware IRQs / syscalls, fill as needed
 
     let descriptor = IdtDescriptor {
         limit: (core::mem::size_of::<Idt>() - 1) as u16,
