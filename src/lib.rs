@@ -2,7 +2,6 @@
 #![no_main]
 
 use core::panic::PanicInfo;
-use core::arch::*;
 pub mod vga_writer;
 pub mod interrupts;
 
@@ -15,20 +14,17 @@ pub extern "C" fn rust_main(_mbi_ptr: usize) -> ! {
         
     vga_writer::GL_VGA_WT_REF.line_o = 2;//start from line no.3 to avoid overlap with 2 previous line of the text print by boot.asm and long_mode.asm
 
-    //Break point exception
     unsafe {
         interrupts::init_idt();
 
-        asm!("int3");
+        interrupts::trigger_breakpoint();
+
+        // interrupts::trigger_pagefault();
     }
 
     //Test Divide by 0 exception
-    // unsafe {
-    //     asm!("mov rax, 100");//move 100 to rax register
-    //     asm!("mov rbx, 0");//move 0 to rbx register
-    //     asm!("div rbx");//divide rax by rbx => 100 / 0 => divide by 0
-    // }
-    
+    // interrupts::trigger_de();
+
     let pi = 3.14;
 
     vga_println!("hello world! using vga buffer pi = {}", pi);

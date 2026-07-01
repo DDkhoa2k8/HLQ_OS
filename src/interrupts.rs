@@ -1,5 +1,6 @@
 use core::ptr::addr_of;
 use crate::vga_println;
+use core::arch::{asm,global_asm};
 
 #[derive(Debug, Clone, Copy)]
 #[repr(C)]
@@ -21,7 +22,6 @@ pub struct ExceptionStackFrame {
     pub ss: u64,
 }
 
-use core::arch::global_asm;
 
 global_asm!(
     r#"
@@ -227,5 +227,25 @@ pub unsafe fn init_idt() {
             in(reg) &descriptor,
             options(readonly, nostack, preserves_flags)
         );
+    }
+}
+
+pub unsafe fn trigger_breakpoint() {
+    unsafe {
+        asm!("int3");
+    }
+}
+
+pub unsafe fn trigger_pagefault() {
+    unsafe {
+        asm!("mov eax, [0xffffffffffffffff]");
+    }
+}
+
+pub unsafe fn trigger_de() {
+    unsafe {
+        asm!("mov rax, 100");//move 100 to rax register
+        asm!("mov rbx, 0");//move 0 to rbx register
+        asm!("div rbx");//divide rax by rbx => 100 / 0 => divide by 0
     }
 }
