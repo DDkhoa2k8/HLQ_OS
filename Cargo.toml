@@ -1,5 +1,5 @@
 [package]
-name = "HLQ_OS"
+name = "hlq_os"
 version = "0.1.0"
 edition = "2024"
 
@@ -8,6 +8,3 @@ crate-type = ["staticlib"]
 harness = false
 
 [dependencies]
-x86_64 = "0.15.4"
-lazy_static = { version = "1.4", features = ["spin_no_std"] }
-spin = "0.9"

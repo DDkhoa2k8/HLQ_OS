@@ -1,10 +1,5 @@
-#![no_std]
-#![no_main]
-
 use core::ptr::addr_of;
-use core::fmt::Write;
-
-use crate::vga_writer;
+use crate::vga_println;
 
 // ── Gate type + attribute byte ──────────────────────────────────────────────
 const GATE_PRESENT:    u8 = 1 << 7;   // P bit
@@ -12,7 +7,7 @@ const GATE_DPL0:       u8 = 0 << 5;   // ring 0
 const GATE_INTERRUPT:  u8 = 0xE;      // 64-bit interrupt gate
 const GATE_TRAP:       u8 = 0xF;      // 64-bit trap gate
 
-const KERNEL_CS: u16 = 0x08;          // your GDT code segment selector
+const KERNEL_CS: u16 = 0x08;          // GDT code segment selector
 
 // ── 16-byte IDT entry ────────────────────────────────────────────────────────
 #[derive(Clone, Copy)]
@@ -76,17 +71,33 @@ struct IdtDescriptor {
 }
 
 // ── Raw exception stubs (must be `extern "C"`, no Rust ABI mangling) ─────────
-unsafe extern "C" fn handler_de()  { /* #DE divide-by-zero    */ loop {} }
-unsafe extern "C" fn handler_db()  { /* #DB debug             */ loop {} }
-unsafe extern "C" fn handler_nmi() { /* NMI                   */ loop {} }
-
-unsafe extern "C" fn handler_bp()  {
-    write!(vga_writer::VGAWriter::init(), "break point");
+unsafe extern "C" fn handler_de()  {  
+    vga_println!("#DE divide-by-zero    "); 
 }
 
-unsafe extern "C" fn handler_of()  { /* #OF overflow (trap)   */ loop {} }
-unsafe extern "C" fn handler_gp()  { /* #GP general protection*/ loop {} }
-unsafe extern "C" fn handler_pf()  { /* #PF page fault        */ loop {} }
+unsafe extern "C" fn handler_db()  {  
+    vga_println!("#DB debug             "); 
+}
+
+unsafe extern "C" fn handler_nmi() {  
+    vga_println!("NMI                   "); 
+}
+
+unsafe extern "C" fn handler_of()  {  
+    vga_println!("#OF overflow (trap)   "); 
+}
+
+unsafe extern "C" fn handler_gp()  {  
+    vga_println!("#GP general protection"); 
+}
+
+unsafe extern "C" fn handler_pf()  {  
+    vga_println!("#PF page fault        "); 
+}
+
+unsafe extern "C" fn handler_bp()  {
+    vga_println!("#BP break point");
+}
 
 // ── Install entries and load ──────────────────────────────────────────────────
 pub unsafe fn init_idt() {
@@ -109,9 +120,11 @@ pub unsafe fn init_idt() {
             },
         };
 
-    core::arch::asm!(
-        "lidt [{}]",
-        in(reg) &descriptor,
-        options(readonly, nostack, preserves_flags)
-    );
+    unsafe {
+        core::arch::asm!(
+            "lidt [{}]",
+            in(reg) &descriptor,
+            options(readonly, nostack, preserves_flags)
+        );
+    }
 }

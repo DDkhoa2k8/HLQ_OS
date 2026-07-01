@@ -4,7 +4,7 @@ iso := build/hlq-os-$(arch).iso
 
 # Path to your compiled Rust static library
 # rust_os := target/x86_64-hlq_os/debug/libHLQ_OS.a
-rust_os := target/x86_64-unknown-none/debug/libHLQ_OS.a
+rust_os := target/x86_64-unknown-none/debug/libhlq_os.a
 
 linker_script := src/arch/$(arch)/linker.ld
 grub_cfg := src/arch/$(arch)/grub.cfg
@@ -21,7 +21,7 @@ clean:
 	@cargo clean
 
 run: $(iso)
-	@qemu-system-x86_64 -cdrom $(iso)
+	@qemu-system-x86_64 -cdrom $(iso) -no-reboot
 
 iso: $(iso)
 

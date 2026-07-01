@@ -1,3 +1,5 @@
+use core::ptr::addr_of_mut;
+
 const COL_SIZE:isize = 80;
 const ROW_SIZE:isize = 25;
 
@@ -38,6 +40,21 @@ pub struct VGAWriter {
     pub color: u8,
     pub clear_on_overlow:bool,
 }
+
+pub static mut GL_VGA_WT:VGAWriter = VGAWriter {
+    vga_addr: 0xb8000 as *mut u8,
+    line_char_o: 0,
+    line_o: 0,
+    color: 0x2f,//Light green
+    clear_on_overlow:true,
+};
+///```no_run
+/// //Change color of global VGAwiter
+/// vga_writer::GL_VGA_WT_REF.set_color(vga_writer::VGAOutColor::Green, vga_writer::VGAOutColor::Black);
+///        
+/// vga_writer::GL_VGA_WT_REF.line_o = 2;//Change line
+/// ```
+pub const GL_VGA_WT_REF:&mut VGAWriter = unsafe {&mut *addr_of_mut!(crate::vga_writer::GL_VGA_WT)};
 
 impl VGAWriter {
     ///### create new instance of VGAWriter
@@ -261,3 +278,32 @@ impl fmt::Write for VGAWriter {
     }
 }
 
+#[macro_export]
+///
+/// ```no_run
+/// vga_print!("pi = {}", 3.14);
+/// ```
+macro_rules! vga_print {
+    ($($arg:tt)*) => {
+        unsafe {
+            use core::fmt::Write;
+            use core::ptr::addr_of_mut;
+            let w = &mut *addr_of_mut!($crate::vga_writer::GL_VGA_WT);
+            let _ = w.write_fmt(core::format_args!($($arg)*));
+        }
+    };
+}
+
+#[macro_export]
+///
+/// ```no_run
+/// vga_println!("pi = {}", 3.14);
+/// vga_println!("pi = {}", 3.14);
+/// //Result:
+/// //3.14
+/// //3.14
+/// ```
+macro_rules! vga_println {
+    () => ($crate::vga_print!("\n"));
+    ($($arg:tt)*) => ($crate::vga_print!("{}\n", core::format_args!($($arg)*)));
+}
