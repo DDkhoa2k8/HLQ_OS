@@ -2,7 +2,7 @@
 #![no_main]
 
 use core::panic::PanicInfo;
-
+use core::arch::{asm, global_asm};
 pub mod vga_writer;
 pub mod interrupts;
 
@@ -19,14 +19,14 @@ pub extern "C" fn rust_main(_mbi_ptr: usize) -> ! {
     unsafe {
         interrupts::init_idt();
 
-        core::arch::asm!("int3");
+        asm!("int3");
     }
 
     //Test Divide by 0 exception
     // unsafe {
-    //     core::arch::asm!("mov rax, 100");//move 100 to rax register
-    //     core::arch::asm!("mov rbx, 0");//move 0 to rbx register
-    //     core::arch::asm!("div rbx");//divide rax by rbx => 100 / 0 => divide by 0
+    //     asm!("mov rax, 100");//move 100 to rax register
+    //     asm!("mov rbx, 0");//move 0 to rbx register
+    //     asm!("div rbx");//divide rax by rbx => 100 / 0 => divide by 0
     // }
     
     vga_println!("hello world! using vga buffer");
