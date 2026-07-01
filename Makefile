@@ -1,10 +1,20 @@
 arch ?= x86_64
+MODE ?= debug
+
+# Adjust paths and flags based on the chosen mode
+# Default is debug. Run with `MODE=release make` to switch.
+remap_path = target/x86_64-unknown-none/$(MODE)/libhlq_os.a
+
+ifeq ($(MODE), release)
+    CARGO_FLAGS := --release
+    rust_os := target/x86_64-unknown-none/release/libhlq_os.a
+else
+    CARGO_FLAGS :=
+    rust_os := target/x86_64-unknown-none/debug/libhlq_os.a
+endif
+
 kernel := build/kernel-$(arch).bin
 iso := build/hlq-os-$(arch).iso
-
-# Path to your compiled Rust static library
-# rust_os := target/x86_64-hlq_os/debug/libHLQ_OS.a
-rust_os := target/x86_64-unknown-none/debug/libhlq_os.a
 
 linker_script := src/arch/$(arch)/linker.ld
 grub_cfg := src/arch/$(arch)/grub.cfg
@@ -12,16 +22,19 @@ assembly_source_files := $(wildcard src/arch/$(arch)/*.asm)
 assembly_object_files := $(patsubst src/arch/$(arch)/%.asm, \
     build/arch/$(arch)/%.o, $(assembly_source_files))
 
-.PHONY: all clean run iso kernel cargo
+.PHONY: all clean run run_log iso kernel cargo
 
 all: $(kernel)
 
 clean:
-	@rm -r build
+	@rm -rf build
 	@cargo clean
 
 run: $(iso)
 	@qemu-system-x86_64 -cdrom $(iso) -no-reboot
+
+run_log: $(iso)
+	@qemu-system-x86_64 -cdrom $(iso) -d int -no-reboot -no-shutdown
 
 iso: $(iso)
 
@@ -30,14 +43,13 @@ $(iso): $(kernel) $(grub_cfg)
 	@cp $(kernel) build/isofiles/boot/kernel.bin
 	@cp $(grub_cfg) build/isofiles/boot/grub
 	@grub-mkrescue -o $(iso) build/isofiles 2> /dev/null
-	@rm -r build/isofiles
+	@rm -rf build/isofiles
 
-# 1. Force cargo to check for changes every build
+# Forces cargo to run, passing the dynamic flags (empty or --release)
 cargo:
-	@cargo build --target x86_64-unknown-none
-# 	@cargo build --target x86_64-hlq_os.json -Zjson-target-spec -Zbuild-std=core,compiler_builtins -Zbuild-std-features=compiler-builtins-mem
+	@cargo build $(CARGO_FLAGS) --target x86_64-unknown-none
 
-# 2. Add $(rust_os) as a dependency and link it
+# Links the kernel, pointing to the correct debug or release .a file
 $(kernel): cargo $(assembly_object_files) $(linker_script)
 	@ld -n -T $(linker_script) -o $(kernel) $(assembly_object_files) $(rust_os)
 
